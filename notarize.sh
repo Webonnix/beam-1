@@ -3,9 +3,19 @@
 
 # Notarize the dmg
 notarize_dmg() {(
-  BEAM_APP_TO_NOTARIZE=$1
-  echo "Uploading $BEAM_APP_TO_NOTARIZE to notarization service"
-  uploadRes=$(xcrun altool --notarize-app --primary-bundle-id "com.mw.beam.beamwallet" --username "$MACOS_NOTARIZE_USER" --password "$MACOS_NOTARIZE_PASS" --asc-provider "$MACOS_NOTARIZE_PROVIDER" --file "$BEAM_APP_TO_NOTARIZE" 2>&1)
+  appToNotarize=$1
+  ext=${appToNotarize: -4}
+  if [[ ( $ext != ".zip" ) && ( $ext != ".dmg" ) ]]; then
+    appToNotarize=$appToNotarize.notarize.zip
+    ditto -c -k --keepParent --rsrc $1 $appToNotarize
+    if [ "$?" != 0 ]; then
+        echo "Failed to pack"
+        exit 1
+    fi
+  fi
+
+  echo "Uploading $appToNotarize to notarization service"
+  uploadRes=$(xcrun altool --notarize-app --primary-bundle-id "com.mw.beam.beamwallet" --username "$MACOS_NOTARIZE_USER" --password "$MACOS_NOTARIZE_PASS" --asc-provider "$MACOS_NOTARIZE_PROVIDER" --file "$appToNotarize" 2>&1)
   echo "Result: $uploadRes"
   uuid=$(echo "$uploadRes" | grep 'RequestUUID' | awk '{ print $3 }')
   if [ "$uuid" = "" ]; then
@@ -20,7 +30,7 @@ notarize_dmg() {(
     fullstatus=$(xcrun altool --notarization-info "$uuid" --username "$MACOS_NOTARIZE_USER" --password "$MACOS_NOTARIZE_PASS" --asc-provider "$MACOS_NOTARIZE_PROVIDER" --verbose 2>&1)
     status=$(echo "$fullstatus" | grep 'Status\:' | awk '{ print $2 }')
     if [ "$status" = "success" ]; then
-      xcrun stapler staple "$BEAM_APP_TO_NOTARIZE"
+      xcrun stapler staple "$1"
       echo "Notarization success"
       return
     elif [ "$status" = "in" ]; then
