@@ -30,7 +30,10 @@ notarize_dmg() {(
     fullstatus=$(xcrun altool --notarization-info "$uuid" --username "$MACOS_NOTARIZE_USER" --password "$MACOS_NOTARIZE_PASS" --asc-provider "$MACOS_NOTARIZE_PROVIDER" --verbose 2>&1)
     status=$(echo "$fullstatus" | grep 'Status\:' | awk '{ print $2 }')
     if [ "$status" = "success" ]; then
-      xcrun stapler staple "$1"
+      xcrun stapler staple -v "$1"
+      if [ "$?" != 0 ]; then
+        exit 1
+      fi
       echo "Notarization success"
       return
     elif [ "$status" = "in" ]; then
