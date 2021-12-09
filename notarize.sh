@@ -3,8 +3,9 @@
 
 # Notarize the dmg
 notarize_dmg() {(
-  echo "Uploading $BEAM_WALLET_UI_IN to notarization service"
-  uploadRes=$(xcrun altool --notarize-app --primary-bundle-id "com.mw.beam.beamwallet" --username "$MACOS_NOTARIZE_USER" --password "$MACOS_NOTARIZE_PASS" --file "$BEAM_WALLET_UI_IN" --verbose 2>&1)
+  BEAM_APP_TO_NOTARIZE=$1
+  echo "Uploading $BEAM_APP_TO_NOTARIZE to notarization service"
+  uploadRes=$(xcrun altool --notarize-app --primary-bundle-id "com.mw.beam.beamwallet" --username "$MACOS_NOTARIZE_USER" --password "$MACOS_NOTARIZE_PASS" --asc-provider "$MACOS_NOTARIZE_PROVIDER" --file "$BEAM_APP_TO_NOTARIZE" 2>&1)
   echo "Result: $uploadRes"
   uuid=$(echo "$uploadRes" | grep 'RequestUUID' | awk '{ print $3 }')
   if [ "$uuid" = "" ]; then
@@ -16,10 +17,10 @@ notarize_dmg() {(
   sleep 15
   while :
   do
-    fullstatus=$(xcrun altool --notarization-info "$uuid" --username "$MACOS_NOTARIZE_USER" --password "$MACOS_NOTARIZE_PASS" --verbose 2>&1)
+    fullstatus=$(xcrun altool --notarization-info "$uuid" --username "$MACOS_NOTARIZE_USER" --password "$MACOS_NOTARIZE_PASS" --asc-provider "$MACOS_NOTARIZE_PROVIDER" --verbose 2>&1)
     status=$(echo "$fullstatus" | grep 'Status\:' | awk '{ print $2 }')
     if [ "$status" = "success" ]; then
-      xcrun stapler staple "$BEAM_WALLET_UI_IN"
+      xcrun stapler staple "$BEAM_APP_TO_NOTARIZE"
       echo "Notarization success"
       return
     elif [ "$status" = "in" ]; then
@@ -33,4 +34,4 @@ notarize_dmg() {(
   done
 )}
 
-notarize_dmg
+notarize_dmg $1

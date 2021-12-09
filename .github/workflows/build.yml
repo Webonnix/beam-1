@@ -5,6 +5,13 @@ on: [push]
 env:
   BUILD_TYPE: Release
   BUILD_CONFIG: RelWithDebInfo
+  BEAM_APPS: |
+    beam/beam-node
+    wallet/cli/beam-wallet
+    wallet/api/wallet-api
+    explorer/explorer-node
+    wallet/broadcaster/broadcaster
+    bvm/ethash_service/ethash-service
 
 jobs:
 ###############################################################################
@@ -14,7 +21,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-10.15, ubuntu-18.04, windows-2019]
+        os: [macos-10.15]
+        #os: [macos-10.15, ubuntu-18.04, windows-2019]
         #os: [macos-10.15, ubuntu-16.04, ubuntu-18.04, ubuntu-20.04, windows-2019]
 
     steps:
@@ -115,10 +123,10 @@ jobs:
 ###############################################################################
 # Test
 ###############################################################################
-    - name: Test [macos-10.15]
-      if: matrix.os == 'macos-10.15'
-      continue-on-error: false
-      run: ctest -C $BUILD_TYPE --verbose
+#    - name: Test [macos-10.15]
+#      if: matrix.os == 'macos-10.15'
+#      continue-on-error: false
+#      run: ctest -C $BUILD_TYPE --verbose
 
     - name: Test [ununtu all]
       if: matrix.os == 'ubuntu-16.04' || matrix.os == 'ubuntu-18.04' || matrix.os == 'ubuntu-20.04'
@@ -143,13 +151,19 @@ jobs:
         p12-password: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_PASSWORD }}
     - name: Sign the mac binaries [macos-10.15]
       if: matrix.os == 'macos-10.15'
+      run: for f in $BEAM_APPS; do codesign --deep --force -v -s "${{secrets.MACOS_SIGN_IDENTITY}}" -o runtime --timestamp $f${{env.BEAM_TARGET_SUFFIX}}; done
+    
+      - name: Notarize [macos-10.15]
+      shell: bash
+      if: matrix.os == 'macos-10.15'
+      env:
+        MACOS_NOTARIZE_USER: ${{ secrets.MACOS_NOTARIZE_USER }}
+        MACOS_NOTARIZE_PASS: ${{ secrets.MACOS_NOTARIZE_PASS }}
+        MACOS_NOTARIZE_PROVIDER: ${{ secrets.MACOS_NOTARIZE_PROVIDER }}
       run: |
-        codesign --deep --force -v -s "${{secrets.MACOS_SIGN_IDENTITY}}" -o runtime --timestamp beam/beam-node${{env.BEAM_TARGET_SUFFIX}}
-        codesign --deep --force -v -s "${{secrets.MACOS_SIGN_IDENTITY}}" -o runtime --timestamp wallet/cli/beam-wallet${{env.BEAM_TARGET_SUFFIX}}
-        codesign --deep --force -v -s "${{secrets.MACOS_SIGN_IDENTITY}}" -o runtime --timestamp wallet/api/wallet-api${{env.BEAM_TARGET_SUFFIX}}
-        codesign --deep --force -v -s "${{secrets.MACOS_SIGN_IDENTITY}}" -o runtime --timestamp explorer/explorer-node${{env.BEAM_TARGET_SUFFIX}}
-        codesign --deep --force -v -s "${{secrets.MACOS_SIGN_IDENTITY}}" -o runtime --timestamp wallet/broadcaster/broadcaster${{env.BEAM_TARGET_SUFFIX}}
-        codesign --deep --force -v -s "${{secrets.MACOS_SIGN_IDENTITY}}" -o runtime --timestamp bvm/ethash_service/ethash-service
+        chmod +x ./notarize.sh
+        for f in $BEAM_APPS; do ./notarize.sh $f${{env.BEAM_TARGET_SUFFIX}} ; done
+        for f in $BEAM_APPS; do $f${{env.BEAM_TARGET_SUFFIX}} ; done
 
     - name: Checksum [ubuntu]
       if: matrix.os == 'ubuntu-16.04' || matrix.os =='ubuntu-18.04' || matrix.os == 'ubuntu-20.04'
