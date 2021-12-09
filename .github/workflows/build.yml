@@ -149,11 +149,12 @@ jobs:
       with:
         p12-file-base64: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 }}
         p12-password: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_PASSWORD }}
+ 
     - name: Sign the mac binaries [macos-10.15]
       if: matrix.os == 'macos-10.15'
       run: for f in $BEAM_APPS; do codesign --deep --force -v -s "${{secrets.MACOS_SIGN_IDENTITY}}" -o runtime --timestamp $f${{env.BEAM_TARGET_SUFFIX}}; done
     
-      - name: Notarize [macos-10.15]
+    - name: Notarize [macos-10.15]
       shell: bash
       if: matrix.os == 'macos-10.15'
       env:
